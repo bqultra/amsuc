@@ -2,8 +2,8 @@ module top(
     input CLK100MHZ, 
     input SW1,
 	input SW2,
-	output LED1,
-	output LED2
+	output reg LED1,
+	output reg LED2
 );
 
 parameter COUNT = 100_000_000;
