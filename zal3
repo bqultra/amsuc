@@ -1,0 +1,63 @@
+// Top module for Nexys4 DDR
+module state_machine(
+    input clk,          // System clock
+    input reset,        // Reset button
+    input switch1,      // Switch for enabling state transitions
+    input switch2,      // Switch for skipping state 1
+    output reg [1:0] led // Output state displayed on LEDs (binary)
+);
+
+    // State declaration
+    reg [1:0] state = 2'b00;
+    wire clk_div;
+
+    // Clock divider for slowing down the clock
+    clock_divider clk_divider_inst (
+        .clk_in(clk),
+        .reset(reset),
+        .clk_out(clk_div)
+    );
+
+    always @(posedge clk_div or posedge reset) begin
+        if (reset) begin
+            state <= 2'b00; // Reset to state 0
+        end else if (switch1) begin
+            case (state)
+                2'b00: state <= switch2 ? 2'b10 : 2'b01; // Transition from 0 to 1 or 0 to 2
+                2'b01: state <= 2'b10;                  // Transition from 1 to 2
+                2'b10: state <= 2'b11;                  // Transition from 2 to 3
+                2'b11: state <= 2'b00;                  // Transition from 3 to 0
+            endcase
+        end
+    end
+
+    // Output the state to LEDs
+    always @(*) begin
+        led = state;
+    end
+
+endmodule
+
+// Clock divider module
+module clock_divider(
+    input clk_in,   // Input clock
+    input reset,    // Reset signal
+    output reg clk_out // Divided clock output
+);
+    
+    reg [24:0] counter = 0; // 25-bit counter for clock division
+
+    always @(posedge clk_in or posedge reset) begin
+        if (reset) begin
+            counter <= 0;
+            clk_out <= 0;
+        end else begin
+            counter <= counter + 1;
+            if (counter == 25_000_000) begin // Adjust for 1Hz if clk_in is 50MHz
+                counter <= 0;
+                clk_out <= ~clk_out;
+            end
+        end
+    end
+
+endmodule
