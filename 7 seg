@@ -1,0 +1,71 @@
+`timescale 1ns / 1ps
+
+module top(
+    input clk,
+    input switch,
+    output reg led,
+    output reg [6:0] seg,
+    output reg [7:0] wys
+    );
+
+    reg [7:0] count = 0;                 // Licznik (0-99)
+    reg [19:0] clk_divider1 = 0;         // Dzielnik zegara dla wolniejszej prędkości
+    reg [24:0] clk_divider2 = 0;         // Dzielnik zegara dla szybszej prędkości
+    reg [24:0] clk_selected = 0;         // Wybrany zegar w zależności od switch
+    reg [3:0] digit0;                    // Jedności
+    reg [3:0] digit1;                    // Dziesiątki
+    reg digit = 0;                       // Aktywne pole wyświetlacza
+
+    // Mapowanie cyfr na segmenty
+    always @(*) begin
+        case (digit ? digit1 : digit0)
+            4'b0000: seg = 8'b11000000; // 0
+            4'b0001: seg = 8'b11111001; // 1
+            4'b0010: seg = 8'b10100100; // 2
+            4'b0011: seg = 8'b10110000; // 3
+            4'b0100: seg = 8'b10011001; // 4
+            4'b0101: seg = 8'b10010010; // 5
+            4'b0110: seg = 8'b10000010; // 6
+            4'b0111: seg = 8'b11111000; // 7
+            4'b1000: seg = 8'b10000000; // 8
+            4'b1001: seg = 8'b10010000; // 9
+            default: seg = 8'b00000000; 
+        endcase
+    end
+
+    // Wybór zegara w zależności od przełącznika
+    always @(posedge clk) begin
+        clk_divider1 <= clk_divider1 + 1'b1;  // Licznik dla wolniejszego zegara
+        clk_divider2 <= clk_divider2 + 1'b1;  // Licznik dla szybszego zegara
+
+        // Wybierz zegar w zależności od stanu switch
+        if (switch) begin
+            clk_selected <= clk_divider2;    // Szybszy zegar
+        end else begin
+            clk_selected <= clk_divider1;    // Wolniejszy zegar
+        end
+
+        // Licznik
+        if (clk_selected == 0) begin
+            count <= count + 1'b1;
+            if (count > 99) count <= 0;      // Reset licznika po 99
+        end
+    end
+
+    // Wyodrębnianie cyfr jedności i dziesiątek
+    always @(*) begin
+        digit0 = count % 10;                 // Jedności
+        digit1 = count / 10;                 // Dziesiątki
+    end
+
+    // Multipleksowanie wyświetlaczy
+    always @(posedge clk_selected[19]) begin
+        digit <= ~digit;   
+        if (digit) begin
+            wys <= 8'b11111110; // Aktywuj pole dziesiątek
+        end else begin
+            wys <= 8'b11111101; // Aktywuj pole jedności
+        end
+    end
+
+endmodule
