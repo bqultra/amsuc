@@ -1,76 +1,54 @@
-module fsm_4states (
-    input  wire        clk,       // Clock input (100 MHz)
-    input  wire [1:0]  switch,    // switch[0] = start, switch[1] = skip ST_3
-    output reg  [15:0] LED        // LED output (16 LEDs, using only LED[0..3])
+module top(
+    input CLK100MHZ, 
+    input SW1,
+	input SW2,
+	output LED1,
+	output LED2
 );
 
-    // State definitions
-    localparam ST_0 = 2'b00;
-    localparam ST_1 = 2'b01;
-    localparam ST_2 = 2'b10;
-    localparam ST_3 = 2'b11;
+parameter COUNT = 100_000_000;
+reg [26:0] clk_divider = 0;
+reg count_enable = 0;
+reg [4:0] state = 0;
 
-    // State registers
-    reg [1:0] current_state = ST_0;  
-    reg [1:0] next_state;
-
-    // Clock divider registers
-    reg [31:0] clk_divider = 0;
-    reg slow_enable = 0;
-
-    // Clock division value for ~0.5s interval (50,000,000 ticks at 100 MHz)
-    localparam DIV_VALUE = 50_000_000;
-
-    // Clock divider logic to generate slow_enable signal
-    always @(posedge clk) begin
-        if (clk_divider == DIV_VALUE) begin
-            clk_divider <= 0;
-            slow_enable <= 1;  // Generate enable pulse
-        end else begin
-            clk_divider <= clk_divider + 1;
-            slow_enable <= 0;  // No pulse otherwise
-        end
+always @(posedge CLK100MHZ) begin
+    if (clk_divider &gt;= COUNT &amp;&amp; SW1) begin
+        clk_divider &lt;= 0;
+        count_enable &lt;= 1;
+    end else begin
+        clk_divider &lt;= clk_divider + 1;
+        count_enable &lt;= 0;
     end
+end
 
-    // State register update on slow_enable signal
-    always @(posedge clk) begin
-        if (slow_enable) begin
-            current_state <= next_state;
-        end
+always @(posedge CLK100MHZ) begin
+    if (count_enable) begin
+        if (state == 3)
+            state &lt;= 0;
+        else
+            state &lt;= state + 1;
     end
+end
 
-    // State transition logic
-    always @(*) begin
-        next_state = current_state; // Default: stay in the current state
-        case (current_state)
-            ST_0: begin
-                if (switch[0]) 
-                    next_state = ST_1; // Move to ST_1 if switch[0] is active
-                else
-                    next_state = ST_0; // Stay in ST_0 otherwise
-            end
-            ST_1: next_state = ST_2; // Always move to ST_2 from ST_1
-            ST_2: begin
-                if (switch[1]) 
-                    next_state = ST_0; // Skip ST_3 and go to ST_0 if switch[1] is active
-                else
-                    next_state = ST_3; // Otherwise, move to ST_3
-            end
-            ST_3: next_state = ST_0; // Always return to ST_0 from ST_3
-            default: next_state = ST_0; // Default: reset to ST_0
-        endcase
-    end
-
-    // LED output logic
-    always @(*) begin
-        LED = 16'b0; // Default: all LEDs off
-        case (current_state)
-            ST_0: LED = 16'b0000000000000000; // All LEDs off
-            ST_1: LED = 16'b0000000000000001; // LED0 on
-            ST_2: LED = 16'b0000000000000011; // LED0 and LED1 on
-            ST_3: LED = 16'b0000000000000111; // LED0, LED1, and LED2 on
-            default: LED = 16'b0000000000000000; // Default: all LEDs off
-        endcase
-    end
+always @(*) begin
+    case (state)
+		0: begin
+			LED1 &lt;= 0;
+			LED2 &lt;= 0;
+		 end
+		1: begin
+			LED1 &lt;= 0;
+			LED2 &lt;= 1;
+		 end
+		2: begin
+			LED1 &lt;= 1;
+			LED2 &lt;= 0;
+		 end
+		3: begin
+			LED1 &lt;= 1;
+			LED2 &lt;= 1;
+		 end
+    endcase
+end
 
 endmodule
